@@ -5,10 +5,12 @@ import requests
 
 app = Flask(__name__)
 
-# Load API Key từ biến môi trường
+# 🔐 Load biến môi trường
 openai.api_key = os.getenv("OPENAI_API_KEY")
+VERIFY_TOKEN = os.getenv("VERIFY_TOKEN")
+PAGE_ACCESS_TOKEN = os.getenv("PAGE_ACCESS_TOKEN")
 
-# 👉 Prompt hướng dẫn AI về FitZone
+# 💬 Prompt định hướng AI trả lời theo phong cách FITZONE
 def generate_reply(prompt):
     system_prompt = """
     Bạn là một trợ lý AI thân thiện, chuyên tư vấn về Private Gym FITZONE – nơi chuyên huấn luyện cá nhân 1:1 cho khách hàng cao cấp, tập trung vào hiệu quả, riêng tư và an toàn.
@@ -32,10 +34,9 @@ def generate_reply(prompt):
     )
     return response['choices'][0]['message']['content']
 
-# Gửi tin nhắn về Messenger
+# 📤 Gửi tin nhắn phản hồi về Messenger
 def send_message(sender_id, message):
-    PAGE_TOKEN = os.getenv("PAGE_ACCESS_TOKEN")
-    url = f"https://graph.facebook.com/v18.0/me/messages?access_token={PAGE_TOKEN}"
+    url = f"https://graph.facebook.com/v18.0/me/messages?access_token={PAGE_ACCESS_TOKEN}"
     headers = {"Content-Type": "application/json"}
     data = {
         "recipient": {"id": sender_id},
@@ -43,6 +44,7 @@ def send_message(sender_id, message):
     }
     requests.post(url, headers=headers, json=data)
 
+# ✅ Webhook xác thực
 @app.route('/')
 def home():
     return "Private Gym AI Chatbot is running"
@@ -50,10 +52,9 @@ def home():
 @app.route('/webhook', methods=['GET', 'POST'])
 def webhook():
     if request.method == 'GET':
-        # Xác thực webhook với Facebook
         token = request.args.get("hub.verify_token")
         challenge = request.args.get("hub.challenge")
-        if token == os.getenv("VERIFY_TOKEN"):
+        if token == VERIFY_TOKEN:
             return challenge, 200
         return "Verification token mismatch", 403
 
@@ -71,4 +72,5 @@ def webhook():
         return "OK", 200
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 8080))  # Railway dùng PORT
+    app.run(debug=True, host='0.0.0.0', port=port)
